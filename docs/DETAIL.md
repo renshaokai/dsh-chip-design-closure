@@ -13,8 +13,10 @@
 | 组成 | 来源 |
 |---|---|
 | 人格提示词 | 原 `agents/chip-arch-expert.md` 正文全文（去掉 YAML frontmatter），作为预设 Persona |
-| `chip-design` 技能 | 原 `skills/chip-design` 全量：`SKILL.md`，10 份 `references/`（架构预算、七章规格大纲、FP/VP、RTL 清单、综合时序、PPA、评审、SoC 集成、交付格式），`templates/spec-template.md` 与 `scripts/md2doc.py` |
+| `chip-design` 技能 | 原 `skills/chip-design` 全量：`SKILL.md`，10 份 `references/`（架构预算、七章规格大纲、FP/VP、RTL 清单、综合时序、PPA、评审、SoC 集成、交付格式），`templates/spec-template.md`、`scripts/md2doc.py` 与 `scripts/figrender.py`（draw.io / Mermaid / WaveDrom 出 SVG、PNG） |
 | 工具 | PowerShell/Bash、文件读写与 glob/grep、后台作业、todo、技能加载、联网搜索、提问、交付物声明、Office 文档、上下文压缩 |
+
+> 出图依赖本机的三个 CLI：`wavedrom-cli`、`@mermaid-js/mermaid-cli`（首次运行会下载 Chromium，约 200 MB）与 draw.io（Windows 上 `winget install JGraph.Draw`）。缺哪个，`figrender.py` 会把失败清单打到 stderr 并以非 0 退出，不会静默跳过。脚本本身只用 Python 标准库，不需要额外 pip 包。
 
 ## 怎么使用
 
