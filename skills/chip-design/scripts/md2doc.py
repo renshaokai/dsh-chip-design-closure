@@ -25,6 +25,137 @@ import tempfile
 
 INLINE_BOLD = re.compile(r"\*\*(.+?)\*\*")
 INLINE_CODE = re.compile(r"`([^`]+)`")
+# ![caption](path) —— 只认本地路径；http 链接不下载，原样留文本（避免转换时联网）
+IMG_MD = re.compile(r"^!\[([^\]]*)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)\s*$")
+IMG_INLINE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+
+
+def _stale_sources(img_path):
+    """返回比 img_path 更新的图源列表（意味着图该重渲染但没重渲染）。
+
+    图源可能是 xxx.drawio / xxx.mmd / xxx.wavedrom，产物是同名 .svg/.png。
+    人改了图源却忘了跑 figrender.py 时，md2doc 会安静地用旧图——
+    Word 里看不出任何异常，这是整条链路最隐蔽的错误。
+    """
+    stem = img_path
+    for ext in (".svg", ".png"):
+        if stem.lower().endswith(ext):
+            stem = stem[: -len(ext)]
+            break
+    # 同组产物的最新时间：.svg 与 .png 是同一次渲染出的，比其中任何一个都算过期
+    newest_out = 0.0
+    for ext in (".svg", ".png"):
+        cand = stem + ext
+        if os.path.exists(cand):
+            try:
+                newest_out = max(newest_out, os.path.getmtime(cand))
+            except OSError:
+                pass
+    if not newest_out:
+        return []
+    newer = []
+    for ext in (".drawio", ".mmd", ".mermaid", ".wavedrom", ".wave.json"):
+        src = stem + ext
+        if os.path.exists(src):
+            try:
+                if os.path.getmtime(src) > newest_out + 1:   # 1s 容差，避免同批生成误报
+                    newer.append(src)
+            except OSError:
+                pass
+    return newer
+
+
+def resolve_img(src, base_dir, want_raster=False):
+    """把 Markdown 里的相对路径解析成绝对路径；找不到返回 None。
+
+    want_raster=True（Word 路径）：.svg 要换成同名 .png——python-docx 不认 SVG。
+    """
+    if re.match(r"^https?://", src):
+        return None
+    p = src if os.path.isabs(src) else os.path.join(base_dir, src)
+    p = os.path.normpath(p)
+    if want_raster and p.lower().endswith(".svg"):
+        alt = p[:-4] + ".png"
+        if os.path.exists(alt):
+            _warn_stale(alt)
+            return alt
+        # 没 PNG 就现烤一张，别让交付物缺图
+        if os.path.exists(p) and _svg_to_png(p, alt):
+            return alt
+        return None
+    if os.path.exists(p):
+        _warn_stale(p)
+        return p
+    return None
+
+
+_STALE_WARNED = set()
+
+
+def _warn_stale(img_path):
+    """图源比产物新就吵一声，别让人交出过期的图。同一组产物只报一次。"""
+    newer = _stale_sources(img_path)
+    if not newer:
+        return
+    stem = img_path
+    for ext in (".svg", ".png"):
+        if stem.lower().endswith(ext):
+            stem = stem[: -len(ext)]
+            break
+    if stem in _STALE_WARNED:
+        return
+    _STALE_WARNED.add(stem)
+    names = ", ".join(os.path.basename(x) for x in newer)
+    print(f"[过期] {os.path.basename(stem)}：图源改过（{names}）但产物没重新渲染，"
+          f"交付物里这张图是旧的。先跑 figrender.py 再重出。", file=sys.stderr)
+
+
+
+def _svg_to_png(svg_path, png_path):
+    """用本机浏览器 headless 兜底出 PNG（与 figrender.py 同一思路）。"""
+    try:
+        head = open(svg_path, encoding="utf-8", errors="ignore").read(4000)
+    except Exception:
+        return False
+    def num(attr):
+        m = re.search(attr + r'\s*=\s*"([\d.]+)', head)
+        return float(m.group(1)) if m else None
+    w, h = num("width"), num("height")
+    if not (w and h):
+        m = re.search(r'viewBox\s*=\s*"([\d.\s-]+)"', head)
+        if m and len(m.group(1).split()) == 4:
+            w, h = float(m.group(1).split()[2]), float(m.group(1).split()[3])
+    w, h = int(min(w or 1400, 4000)) + 40, int(min(h or 900, 4000)) + 40
+    url = "file:///" + os.path.abspath(svg_path).replace("\\", "/")
+    for exe in (
+        r"C://Program Files (x86)//Microsoft//Edge//Application//msedge.exe",
+        r"C://Program Files//Microsoft//Edge//Application//msedge.exe",
+        r"C://Program Files//Google//Chrome//Application//chrome.exe",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        shutil.which("google-chrome") or "",
+        shutil.which("chromium") or "",
+    ):
+        if exe and os.path.exists(exe):
+            subprocess.run([exe, "--headless", "--disable-gpu", "--no-sandbox",
+                            "--hide-scrollbars", "--force-device-scale-factor=2",
+                            f"--window-size={w},{h}", f"--screenshot={png_path}", url],
+                           capture_output=True)
+            if os.path.exists(png_path):
+                return True
+    return False
+
+
+def img_width_in(path, max_in=6.2):
+    """按图片像素宽定 Word 里的显示宽度。
+    A4 正文宽约 6.3in；PNG 按 96dpi 折算，SVG 无像素宽时退回满宽。
+    满宽铺开会让小图虚胖，所以小图按原始尺寸、大图才缩到版心。"""
+    try:
+        from PIL import Image
+        w_px = Image.open(path).size[0]
+        w_in = w_px / 96.0
+    except Exception:
+        w_in = max_in
+    return round(min(w_in, max_in), 2)
 
 
 def parse_blocks(lines):
@@ -48,6 +179,16 @@ def parse_blocks(lines):
                 i += 1
             i += 1
             blocks.append(("code", lang, "\n".join(buf)))
+            continue
+
+        # 独占一行的图片
+        mimg = IMG_MD.match(s)
+        if mimg:
+            blocks.append(("img", mimg.group(1).strip(), mimg.group(2)))
+            i += 1
+            # 紧跟的 HTML 注释（图源说明）吞掉，不进正文
+            while i < n and re.match(r"^\s*<!--.*-->\s*$", lines[i]):
+                i += 1
             continue
 
         # 标题
@@ -120,7 +261,7 @@ def split_row(s):
 
 # ---------------------------------------------------------------- Word
 
-def build_docx(blocks, out_path, font_cjk="等线", font_mono="Consolas", title=""):
+def build_docx(blocks, out_path, font_cjk="等线", font_mono="Consolas", title="", base_dir="."):
     from docx import Document
     from docx.enum.table import WD_TABLE_ALIGNMENT
     from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -223,6 +364,31 @@ def build_docx(blocks, out_path, font_cjk="等线", font_mono="Consolas", title=
             r.font.size = Pt(10)
             r.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
 
+        elif kind == "img":
+            caption, src = b[1], b[2]
+            path = resolve_img(src, base_dir, want_raster=True)
+            if path:
+                p = doc.add_paragraph()
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p.paragraph_format.space_before = Pt(6)
+                p.paragraph_format.space_after = Pt(2)
+                p.paragraph_format.keep_with_next = True
+                p.add_run().add_picture(path, width=Cm(img_width_in(path) * 2.54))
+                if caption:
+                    c = doc.add_paragraph()
+                    c.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    c.paragraph_format.space_after = Pt(10)
+                    r = c.add_run(caption)
+                    r.font.size = Pt(9)
+                    r.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+            else:
+                # 找不到图就留痕，不静默丢——否则交付物里少张图没人发现
+                p = doc.add_paragraph()
+                r = p.add_run(f"[缺图：{src}]")
+                r.font.color.rgb = RGBColor(0xC0, 0x00, 0x00)
+                r.bold = True
+                print(f"[警告] 图片不存在：{src}（基准目录 {base_dir}）", file=sys.stderr)
+
         elif kind == "code":
             p = doc.add_paragraph()
             p.paragraph_format.left_indent = Pt(12)
@@ -319,7 +485,7 @@ def inline_md(s):
     return s
 
 
-def build_html(blocks, title=""):
+def build_html(blocks, title="", base_dir="."):
     out = [
         "<!DOCTYPE html><html><head><meta charset='utf-8'>",
         f"<title>{esc(title)}</title><style>{CSS}</style></head><body>",
@@ -337,6 +503,16 @@ def build_html(blocks, title=""):
             out.append("<ol>" + "".join(f"<li>{inline_md(x)}</li>" for x in b[1]) + "</ol>")
         elif kind == "quote":
             out.append(f"<blockquote>{inline_md(b[1])}</blockquote>")
+        elif kind == "img":
+            caption, src = b[1], b[2]
+            path = resolve_img(src, base_dir)
+            if path:
+                uri = "file:///" + os.path.abspath(path).replace("\\", "/")
+                out.append(f"<figure><img src='{uri}' alt='{esc(caption)}'>"
+                           + (f"<figcaption>{esc(caption)}</figcaption>" if caption else "")
+                           + "</figure>")
+            else:
+                out.append(f"<p style='color:#c00;font-weight:600'>[缺图：{esc(src)}]</p>")
         elif kind == "code":
             out.append(f"<pre>{esc(b[2])}</pre>")
         elif kind == "hr":
@@ -413,15 +589,16 @@ def main():
 
     stem = args.out or os.path.splitext(args.src)[0]
     title = os.path.basename(stem)
+    base_dir = os.path.dirname(os.path.abspath(args.src)) or "."
     made = []
 
     if args.only in (None, "docx"):
         p = stem + ".docx"
-        build_docx(blocks, p, font_cjk=args.font, title=title)
+        build_docx(blocks, p, font_cjk=args.font, title=title, base_dir=base_dir)
         made.append(p)
 
     if args.only in (None, "pdf"):
-        h = build_html(blocks, title)
+        h = build_html(blocks, title, base_dir=base_dir)
         if args.html_also:
             hp = stem + ".html"
             with open(hp, "w", encoding="utf-8") as f:

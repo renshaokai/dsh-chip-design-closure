@@ -1,7 +1,7 @@
 {
   "name": "dsh-chip-design-closure",
-  "version": "1.7.1",
-  "description": "Design-side closure for digital chip front-end work on DeepSeek Harness: architecture and budgets, design specs, functional-point/test-point lists, RTL, lint/CDC, synthesis and timing closure, PPA and SoC integration. Carries the chip-design skill.",
+  "version": "1.8.1",
+  "description": "Design-side closure for digital chip front-end work on DeepSeek Harness: architecture and budgets, design specs, functional-point/test-point lists, RTL, lint/CDC, synthesis and timing closure, PPA and SoC integration, plus engineered diagrams (draw.io / Mermaid / WaveDrom). Carries the chip-design skill.",
   "keywords": [
     "dsh-plugin",
     "dsh-bundle",

@@ -38,6 +38,7 @@ description: 数字芯片前端设计侧的全流程工作底稿——架构与�
 | 接 AXI/AHB、定地址映射、配 outstanding、中断汇聚、低功耗域、互连拓扑 | `references/soc-integration.md` |
 | 做设计评审、spec↔RTL 对账、FP/VP 检查、集成契约核对 | `references/review-checklist.md` |
 | 定交付格式、出 Word/PDF、图怎么进 Word、评审批注怎么回流 | `references/delivery-formats.md` |
+| **图怎么画、怎么渲染进 Word/PDF**（架构框图用 draw.io、拓扑状态机用 Mermaid、波形用 WaveDrom；图源与脚本、装什么） | `references/delivery-formats.md` 一、二节 + `scripts/figrender.py` |
 | **要一份可直接照抄的 spec 目录骨架** | `templates/spec-template.md` |
 
 ## 十二条硬规矩
@@ -125,7 +126,14 @@ description: 数字芯片前端设计侧的全流程工作底稿——架构与�
 - **第 6 章写成验证计划**：写 UVM 环境结构、覆盖率目标百分比、回归流程——那是验证方的《验证计划》，设计者写不了也不该签。第 6 章只写范围边界、风险提示、FP/VP 清单、基线声明。
 - **spec 版本漂移**：RTL ECO 后 spec 不跟着更新，验证拿旧基线测新代码——报告全绿，测的不是当前实现。ECO 后必须增量回填，并把预期值失效的 VP 标出来通知验证方。
 - **同一份 spec 手写多份格式**：md 一份、Word 一份，第一个 ECO 后就分叉。Markdown 是唯一可编辑源，Word/PDF 是生成物；评审批注收回来改源再重新生成。见 `delivery-formats.md`。
-- **Markdown 里贴截图不贴图源**：图变成不可追溯的位图，改模块名图不跟着变。图源（.mmd/.wavedrom）进仓库，Word/PDF 里的图由源渲染生成。
+- **Markdown 里贴截图不贴图源**：图变成不可追溯的位图，改模块名图不跟着变。图源（.drawio/.mmd/.wavedrom）进仓库，Word/PDF 里的图由源渲染生成。
+- **以为写了 DSL 块就等于图出来了**：Markdown 平台能渲染 mermaid，但 Word 只会把代码块原样印成文本。交付前必须跑 `figrender.py` + `md2doc.py`，并在 Word 里翻一遍确认每张图都在——**这是最容易漏检的一处，因为正文看起来"有内容"**。
+- **拿 Mermaid 画架构框图**：`subgraph` 只要跨组有连线（SoC 图必然有），嵌套就失效、子图被甩出父容器。架构图用 draw.io 手写 XML，位置才可控。
+- **把画图推给人工或指望 MCP**：`.drawio` 是 XML，AI 直接写；MCP 的产物是浏览器里的一次性会话，进不了仓库、不能 diff。交付链路要的是文件 + CLI 导出。
+- **图跑出来了没看就往下走**：走线穿方块、子图出界、标签压线，退出码全是 0。架构图出完必须开一眼。
+- **改了图源不重渲染**：文档里还是旧图，Word 看不出异常。`md2doc.py` 的 `[过期]` 警告就是这件事，别忽略。
+- **交付不给图源**：只给 docx/pdf，用户想改一个字都改不了。`fig/` 目录要一起给，并说明哪份可改。
+- **把 SVG 直接塞进 Word**：python-docx 不认 SVG，抛 `UnrecognizedImageError`。Word 一律用 PNG（`figrender.py` 默认出，md2doc 会自动换）。
 - **「实现方式」写成一句话**：写"采用三级流水、片内 SRAM 缓存"就算完——数据怎么传输、算子映射到什么资源、复用几次、溢出怎么处理全没有，验证给不出预期值，主管也判不出方案好坏。
 - **精度口径不写**：算法侧说 INT8 累加，硬件用 32 位还是 24 位、饱和还是回绕不写，验证只能猜；猜错的方向总是"两边都自认为对"。
 - **传输只写路径不写生命周期**：进了 buffer 没人写谁释放，credit 只借不还——功能全对，带宽慢慢掉下去，集成期最难查。

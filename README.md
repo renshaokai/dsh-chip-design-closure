@@ -2,7 +2,7 @@
 
 A DeepSeek Harness bundle that adds the **设计收口 (Design closure)** agent preset: design-side closure for digital chip front-end work — architecture and budgets, design specs, functional-point/test-point lists, RTL, lint/CDC, synthesis and timing closure, PPA, SoC integration — handing off at the VP list. Carries the **chip-design** skill.
 
-This is the DeepSeek Harness edition of the CodeBuddy expert plugin `chip-arch-expert` v1.7.0 — same author, adapted packaging. The skill content is unchanged; the persona keeps its substance but is rewritten in second person with the character name dropped, and the preset, tool composition, icon and display metadata are DSH-specific.
+This is the DeepSeek Harness edition of the CodeBuddy expert plugin `chip-arch-expert` v1.8.1 — same author, adapted packaging. The skill content tracks the upstream release; the persona keeps its substance but is rewritten in second person with the character name dropped, and the preset, tool composition, icon and display metadata are DSH-specific.
 
 ## Install
 
@@ -17,7 +17,7 @@ Or in the Web GUI: **Plugins** → **Add plugin** → pick the package directory
 | Part | Content |
 |---|---|
 | Agent preset `chip-arch-expert` | Full persona of a digital chip architect: architecture and budgets, design specs written forward or reverse-engineered from RTL, functional-point/test-point lists, RTL, lint/CDC, synthesis, timing closure, PPA, SoC integration. Hands off at the VP list. |
-| Skill `chip-design` | Workflow reference library: architecture budget, seven-part spec outline, FP/VP generation, RTL checklist, synthesis and timing, PPA, review checklist, SoC integration, delivery formats, plus a spec template and an `md2doc.py` converter. |
+| Skill `chip-design` | Workflow reference library: architecture budget, seven-part spec outline, FP/VP generation, RTL checklist, synthesis and timing, PPA, review checklist, SoC integration, delivery formats, plus a spec template, an `md2doc.py` converter and `figrender.py` (draw.io / Mermaid / WaveDrom diagrams to SVG/PNG). |
 
 Tools mounted with the preset: PowerShell/Bash, filesystem read/write and search, background jobs, todo, skill loading, web search, user questions, deliverable declarations, Office documents, and context compaction.
 
