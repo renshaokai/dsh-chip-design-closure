@@ -1,0 +1,42 @@
+{
+  "name": "dsh-chip-design-closure",
+  "version": "1.7.1",
+  "description": "Design-side closure for digital chip front-end work on DeepSeek Harness: architecture and budgets, design specs, functional-point/test-point lists, RTL, lint/CDC, synthesis and timing closure, PPA and SoC integration. Carries the chip-design skill.",
+  "keywords": [
+    "dsh-plugin",
+    "dsh-bundle",
+    "design-closure",
+    "chip-design",
+    "asic",
+    "rtl",
+    "soc"
+  ],
+  "author": "流片之前",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "type": "module",
+  "engines": {
+    "dsh": ">=0.2.2-rc.3"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "README.md",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "docs",
+    "icon.svg",
+    "skills"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
