@@ -2,7 +2,7 @@
 
 A DeepSeek Harness bundle that adds the **设计收口 (Design closure)** agent preset: design-side closure for digital chip front-end work — architecture and budgets, design specs, functional-point/test-point lists, RTL, lint/CDC, synthesis and timing closure, PPA, SoC integration — handing off at the VP list. Carries the **chip-design** skill.
 
-This is the DeepSeek Harness edition of the CodeBuddy expert plugin `chip-arch-expert` v1.8.1 — same author, adapted packaging. The skill content tracks the upstream release; the persona keeps its substance but is rewritten in second person with the character name dropped, and the preset, tool composition, icon and display metadata are DSH-specific.
+This is the DeepSeek Harness edition of the CodeBuddy expert plugin `chip-arch-expert` v1.9.0 — same author, adapted packaging. The skill content tracks the upstream release; the persona keeps its substance but is rewritten in second person with the character name dropped, and the preset, tool composition, icon and display metadata are DSH-specific.
 
 ## Install
 
