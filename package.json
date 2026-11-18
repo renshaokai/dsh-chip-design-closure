@@ -13,6 +13,10 @@
   ],
   "author": "流片之前",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/renshaokai/dsh-chip-design-closure.git"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org"
