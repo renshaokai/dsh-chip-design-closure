@@ -6,11 +6,23 @@ This is the DeepSeek Harness edition of the CodeBuddy expert plugin `chip-arch-e
 
 ## Install
 
+`dsh plugin` forwards its arguments to `pnpm` inside the profile directory, so the argument is a package spec — a package name, a directory, a tarball, or a Git URL — not a file.
+
+Install from a local checkout. This links the directory rather than copying it, so edits to the checkout take effect after a restart:
+
 ```sh
-dsh plugin --profile <profile> add dsh-chip-design-closure
+dsh plugin --profile <profile> add /path/to/dsh-chip-design-closure
 ```
 
-Or in the Web GUI: **Plugins** → **Add plugin** → pick the package directory. Then start a new session and choose the **设计收口** preset.
+```powershell
+dsh plugin --profile desktop add D:\path\to\dsh-chip-design-closure
+```
+
+Or in the Web GUI: **Plugins** → **Add plugin** → pick the package directory.
+
+Then start a new session and choose the **设计收口** preset.
+
+The package is not published to npm yet, so `add dsh-chip-design-closure` fails with a registry lookup error. After `npm publish`, the bare name installs from the registry instead; the engine requirement is `dsh >= 0.2.2-rc.3`.
 
 ## What it adds
 
