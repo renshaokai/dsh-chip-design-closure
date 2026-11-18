@@ -259,9 +259,107 @@ def split_row(s):
     return [c.strip() for c in s.split("|")]
 
 
+# ---------------------------------------------------------------- 目录
+
+# 这些标题不进目录：「模板使用说明」整节（含子节）以及目录自身
+TOC_SKIP_ROOTS = ("模板使用说明", "目录", "目　录", "Contents")
+
+
+def collect_headings(blocks, depth=3):
+    """收集可进目录的标题。
+
+    规则：
+      - 只收 level 1..depth
+      - 遇到 TOC_SKIP_ROOTS 中的一级标题，跳过整节直到下一个同级或更高级标题
+      - 一级标题（文档主标题）也收，因为规格文档的 H1 就是章
+
+    返回 [(level, text), ...]，保持原顺序。
+    """
+    out, skip_level = [], None
+    for b in blocks:
+        if b[0] != "h":
+            continue
+        level, text = b[1], b[2]
+        plain = re.sub(r"\*\*(.+?)\*\*|`([^`]+)`",
+                       lambda m: m.group(1) or m.group(2), text).strip()
+        if skip_level is not None:
+            if level > skip_level:
+                continue
+            skip_level = None
+        if any(plain.startswith(r) for r in TOC_SKIP_ROOTS):
+            skip_level = level
+            continue
+        if level <= depth:
+            out.append((level, plain))
+    return out
+
+
+def _toc_field_docx(doc, depth=3, font_cjk="等线"):
+    """插入 Word 原生 TOC 域（带页码，可右键更新）。"""
+    from docx.enum.text import WD_BREAK
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Pt
+
+    # 「目录」两个字用普通段落，不用 Heading 样式，否则它自己会出现在目录里
+    p = doc.add_paragraph()
+    r = p.add_run("目　录")
+    r.bold = True
+    r.font.size = Pt(14)
+    r.font.name = "Calibri"          # 先设西文字体，python-docx 才会建出 rPr/rFonts
+    r.element.rPr.rFonts.set(qn("w:eastAsia"), font_cjk)
+    p.paragraph_format.space_after = Pt(8)
+
+    par = doc.add_paragraph()
+    run = par.add_run()
+
+    def fld(kind):
+        el = OxmlElement("w:fldChar")
+        el.set(qn("w:fldCharType"), kind)
+        return el
+
+    begin = fld("begin")
+    instr = OxmlElement("w:instrText")
+    instr.set(qn("xml:space"), "preserve")
+    instr.text = f'TOC \\o "1-{depth}" \\h \\z \\u'
+    sep = fld("separate")
+    placeholder = OxmlElement("w:t")
+    placeholder.text = "（打开后按 Ctrl+A 再按 F9 更新域，即生成带页码的目录）"
+    end = fld("end")
+
+    for el in (begin, instr, sep, placeholder, end):
+        run._r.append(el)
+
+    # 域没更新时 Word 会显示占位文字；让 Word 打开即自动更新
+    try:
+        settings = doc.settings.element
+        uf = OxmlElement("w:updateFields")
+        uf.set(qn("w:val"), "true")
+        settings.append(uf)
+    except Exception:
+        pass  # 老版本 python-docx 无 settings，占位文字仍提示用户手动更新
+
+    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+
+
+def _toc_html(heads):
+    """HTML 侧生成带锚点的目录。"""
+    if not heads:
+        return ""
+    rows = []
+    for i, (level, text) in enumerate(heads):
+        pad = (level - 1) * 14
+        rows.append(
+            f"<li style='margin-left:{pad}px'><a href='#h{i}'>{esc(text)}</a></li>"
+        )
+    return ("<div class='toc'><div class='toc-title'>目　录</div><ul>"
+            + "".join(rows) + "</ul></div>")
+
+
 # ---------------------------------------------------------------- Word
 
-def build_docx(blocks, out_path, font_cjk="等线", font_mono="Consolas", title="", base_dir="."):
+def build_docx(blocks, out_path, font_cjk="等线", font_mono="Consolas", title="", base_dir=".",
+               toc=True, toc_depth=3):
     from docx import Document
     from docx.enum.table import WD_TABLE_ALIGNMENT
     from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -333,12 +431,19 @@ def build_docx(blocks, out_path, font_cjk="等线", font_mono="Consolas", title=
             if bold:
                 r.bold = True
 
+    # 目录：插在文档最前面（正文标题尚未写入时先占位）
+    if toc and collect_headings(blocks, toc_depth):
+        _toc_field_docx(doc, depth=toc_depth, font_cjk=font_cjk)
+
     for b in blocks:
         kind = b[0]
 
         if kind == "h":
             level, text = b[1], b[2]
-            doc.add_heading(text, level=min(level, 4))
+            # 标题里不保留 markdown 标记：反引号会原样进目录，粗体会失效
+            clean = re.sub(r"\*\*(.+?)\*\*|`([^`]+)`",
+                           lambda m: m.group(1) or m.group(2), text).strip()
+            doc.add_heading(clean, level=min(level, 4))
 
         elif kind == "para":
             p = doc.add_paragraph()
@@ -473,6 +578,17 @@ li { margin: 2px 0; }
 hr { border: none; border-top: 0.5pt solid #ddd; margin: 14px 0; }
 """
 
+TOC_CSS = """
+.toc { margin: 0 0 18px; padding: 10px 16px 12px; background:#f7f7f5;
+       border: 0.5pt solid #ddd; page-break-after: always; }
+.toc-title { font-size: 14pt; font-weight: 700; margin-bottom: 8px;
+             letter-spacing: 2px; }
+.toc ul { list-style: none; padding-left: 0; margin: 0; }
+.toc li { margin: 1.5px 0; font-size: 9.5pt; }
+.toc a { color: #1a1a1a; text-decoration: none; }
+.toc a::after { content: "" ; }
+"""
+
 
 def esc(s):
     return html.escape(s, quote=False)
@@ -485,16 +601,25 @@ def inline_md(s):
     return s
 
 
-def build_html(blocks, title="", base_dir="."):
+def build_html(blocks, title="", base_dir=".", toc=True, toc_depth=3):
+    heads = collect_headings(blocks, toc_depth) if toc else []
     out = [
         "<!DOCTYPE html><html><head><meta charset='utf-8'>",
-        f"<title>{esc(title)}</title><style>{CSS}</style></head><body>",
+        f"<title>{esc(title)}</title><style>{CSS}{TOC_CSS}</style></head><body>",
+        _toc_html(heads),
     ]
+    hi = 0  # 与 collect_headings 的数量对齐，只给进目录的标题加锚点
     for b in blocks:
         kind = b[0]
         if kind == "h":
             lv = min(b[1], 6)
-            out.append(f"<h{lv}>{inline_md(b[2])}</h{lv}>")
+            plain = re.sub(r"\*\*(.+?)\*\*|`([^`]+)`",
+                           lambda m: m.group(1) or m.group(2), b[2]).strip()
+            in_toc = hi < len(heads) and heads[hi][1] == plain
+            anchor = f" id='h{hi}'" if in_toc else ""
+            if in_toc:
+                hi += 1
+            out.append(f"<h{lv}{anchor}>{inline_md(b[2])}</h{lv}>")
         elif kind == "para":
             out.append(f"<p>{inline_md(b[1])}</p>")
         elif kind == "ul":
@@ -580,12 +705,16 @@ def main():
     ap.add_argument("--only", choices=["docx", "pdf"], help="只出一种格式")
     ap.add_argument("--html-also", action="store_true", help="同时保留中转 HTML（排查版式用）")
     ap.add_argument("--font", default="等线", help="Word 中文字体，默认等线")
+    ap.add_argument("--no-toc", action="store_true", help="不生成目录（默认自动生成）")
+    ap.add_argument("--toc-depth", type=int, default=3, choices=[1, 2, 3, 4],
+                    help="目录收录到几级标题，默认 3")
     args = ap.parse_args()
 
     with open(args.src, encoding="utf-8") as f:
         text = f.read()
     lines = text.splitlines()
     blocks = parse_blocks(lines)
+    want_toc = not args.no_toc
 
     stem = args.out or os.path.splitext(args.src)[0]
     title = os.path.basename(stem)
@@ -594,11 +723,13 @@ def main():
 
     if args.only in (None, "docx"):
         p = stem + ".docx"
-        build_docx(blocks, p, font_cjk=args.font, title=title, base_dir=base_dir)
+        build_docx(blocks, p, font_cjk=args.font, title=title, base_dir=base_dir,
+                   toc=want_toc, toc_depth=args.toc_depth)
         made.append(p)
 
     if args.only in (None, "pdf"):
-        h = build_html(blocks, title, base_dir=base_dir)
+        h = build_html(blocks, title, base_dir=base_dir,
+                       toc=want_toc, toc_depth=args.toc_depth)
         if args.html_also:
             hp = stem + ".html"
             with open(hp, "w", encoding="utf-8") as f:

@@ -228,20 +228,30 @@ spec.md ──┬──> spec.md   （源，直接交付）
 脚本：`skills/chip-design/scripts/md2doc.py`
 
 ```bash
-python md2doc.py spec.md              # 同时出 docx + pdf
+python md2doc.py spec.md              # 同时出 docx + pdf（都带目录）
 python md2doc.py spec.md --only pdf   # 只出 PDF
 python md2doc.py spec.md --only docx --font 宋体
+python md2doc.py spec.md --no-toc     # 不出目录
+python md2doc.py spec.md --toc-depth 2  # 只收一到二级标题
 ```
 
 依赖两样：`python-docx`（`pip install python-docx -i https://mirrors.aliyun.com/pypi/simple/`，约 1 MB）；Edge 或 Chrome（Windows/macOS 基本自带，PDF 引擎走 headless 打印，零安装）。
 
-**转换器已处理的**：标题层级、GFM 表格（含表头底纹与跨页重复）、代码块底纹等宽、行内粗体/行内代码、引用块、有序无序列表、页脚页码、A4 页边距。
+**转换器已处理的**：标题层级、GFM 表格（含表头底纹与跨页重复）、代码块底纹等宽、行内粗体/行内代码、引用块、有序无序列表、页脚页码、A4 页边距、**自动目录**。
+
+**关于目录（v1.11.0 起自动生成）**：
+
+- **Word 走原生 TOC 域**，不是手打一份静态列表。好处是页码随排版自动变、右键"更新域"就能刷新；脚本同时写了 `w:updateFields`，Word 打开时会主动提示更新。
+- **源文件里不用写目录，也不用加锚点。** 目录按标题层级现场生成，所以增删章节之后不需要维护任何东西——这一点很重要：手写目录在第三版之后必然与实际章节脱节，而**一份对不上的目录比没有目录更糟**，读者会照着错目录翻页。
+- **「模板使用说明」整节不进目录**（连同它的子节）。它是给填表人看的，不是文档内容，出现在目录里会让读者以为这是正式章节。
+- **收录到三级标题**，可用 `--toc-depth` 调整。四级以下通常太细，收进目录反而看不清主干。
+- **HTML/PDF 侧生成带锚点的目录列表**，可点跳转。
 
 **转换器不做的（需要时手工补，别指望自动）**：
 
 - 复杂合并单元格——Markdown 表达不了，需要时在 Word 里补并登记
 - 图表交叉引用自动编号——"见图 3-A-02"要靠 Word 域或手工保持一致
-- 目录自动生成——Word 里插入 TOC 域即可，不必写进源
+- 表格/图的目录（图表索引）——需要时在 Word 里单独插一个 `TOC \c` 域
 
 ## 四、常见错误
 

@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Design closure",
-    "description": "Adds a design-closure agent preset: the design side is taken to the end, the verification side only gets a handoff. Covers architecture and budgets, seven-part design specs written forward or reverse-engineered from RTL, functional-point and test-point lists, RTL, lint/CDC, synthesis and timing closure, PPA and SoC integration, stopping at the VP list.",
+    "description": "Adds a design-closure agent preset: the design side is taken to the end, the verification side only gets a handoff. Covers architecture and budgets, eight-chapter design specs written forward or reverse-engineered from RTL, with mandatory closure self-checks, functional-point and test-point lists, RTL, lint/CDC, synthesis and timing closure, PPA and SoC integration, stopping at the VP list.",
     "detail": "docs/DETAIL.md"
   }
 }

@@ -1,6 +1,6 @@
 # 设计收口
 
-这个预设是 `package/chip-arch-expert.zip` 那份 CodeBuddy 专家插件（v1.9.0，作者「流片之前」）的 DSH 版：人格提示词取自该插件的 agent 定义，工作底稿取自它自带的 `chip-design` 技能。技能内容不变，人设正文改为第二人称并去掉人名；预设、工具组合、图标与展示元数据是 DSH 侧的。
+这个预设是 `package/chip-arch-expert.zip` 那份 CodeBuddy 专家插件（v1.12.0，作者「流片之前」）的 DSH 版：人格提示词取自该插件的 agent 定义，工作底稿取自它自带的 `chip-design` 技能。技能内容不变，人设正文改为第二人称并去掉人名；预设、工具组合、图标与展示元数据是 DSH 侧的。
 
 名字取「设计收口」，对应人设自己的主张：**设计侧到底，验证侧只交接**。分界线在 VP 清单，之前的产出都归它，之后属于验证；它的价值落在后半段——写得出 RTL 的人很多，能把 RTL 收到时序和面积里的少。<br>
 
@@ -13,7 +13,7 @@
 | 组成 | 来源 |
 |---|---|
 | 人格提示词 | 原 `agents/chip-arch-expert.md` 正文全文（去掉 YAML frontmatter），作为预设 Persona |
-| `chip-design` 技能 | 原 `skills/chip-design` 全量：`SKILL.md`，10 份 `references/`（架构预算、八章规格大纲、FP/VP、RTL 清单、综合时序、PPA、评审、SoC 集成、交付格式），`templates/spec-template.md`、`scripts/md2doc.py` 与 `scripts/figrender.py`（draw.io / Mermaid / WaveDrom 出 SVG、PNG） |
+| `chip-design` 技能 | 原 `skills/chip-design` 全量：`SKILL.md`，9 份 `references/`（架构预算、八章规格大纲、FP/VP、RTL 清单、综合时序、PPA、评审与对账清单、SoC 集成、交付格式），`templates/spec-template.md`（八章骨架，含文档控制区与状态机三张表），`scripts/md2doc.py`（出 docx / PDF，带自动目录）与 `scripts/figrender.py`（draw.io / Mermaid / WaveDrom 出 SVG、PNG） |
 | 工具 | PowerShell/Bash、文件读写与 glob/grep、后台作业、todo、技能加载、联网搜索、提问、交付物声明、Office 文档、上下文压缩 |
 
 > 出图依赖本机的三个 CLI：`wavedrom-cli`、`@mermaid-js/mermaid-cli`（首次运行会下载 Chromium，约 200 MB）与 draw.io（Windows 上 `winget install JGraph.Draw`）。缺哪个，`figrender.py` 会把失败清单打到 stderr 并以非 0 退出，不会静默跳过。脚本本身只用 Python 标准库，不需要额外 pip 包。
@@ -22,11 +22,24 @@
 
 在会话顶部切换预设，选择「设计收口」。技能 `chip-design` 在该预设的会话里自动可见，模型按需加载；它同时存在于 bundle 的 `skills/` 目录下。
 
+## 上游 1.9.0 → 1.12.0 补了什么
+
+三版增量全部来自真实评审暴露的失败模式，不是功能堆叠。人格与技能已整体同步到 1.12.0：`SKILL.md`、`references/`、`templates/`、`scripts/` 与上游逐字节一致，只把换行符归一为 LF、页脚署名改为「设计收口」。
+
+| 版本 | 补强 | 触发场景 |
+|---|---|---|
+| 1.10.0 | **反向文档的时序与推断纪律**：外部可见行为一律按「采样沿之后」写；派生指示给递推式 `activity[n] = (state[n-1] != IDLE)` 而不是「延迟 N 拍」；功能状态词由「已实现 / 条件支持 / 暂不实现」改为「路径存在 / 条件存在 / 无路径」，堵住「已实现 = 已验证」的误读；新增外部协议假设 `A-xx`、时序契约 `CPL-xx`、3.e「RTL 核对结果表」与文首评审摘要；VP 改称「验收观察点」，并补负向 VP 规则（违反时不得发生、脉冲恰为 N 拍、等待信号永不到来、非法编码回哪）。 | 一份 as-built spec 被客户端逐条审出 3 条 P0 / 4 条 P1 / 3 条 P2，每条都带 RTL 证据 |
+| 1.11.0 | **反向文档不许留空白**：四类「补不出」的内容改为给候选 + 标 `TBC`/`inferred` + 指 `[?Q-xx]`，裸 `TBD` 零出现；反向必须产出 `REQ-001` 起的候选需求，并声明「由 RTL 反推、非客户原始需求」；状态机交三张表（转移表带判定顺序列、状态×输出矩阵按 Moore / Mealy 分开、不变量 `INV-xx`）；新增文档控制区 1.0、编号族总表 1.2.1、规范性动词约定 1.3.1；`md2doc.py` 出 Word 原生目录。 | 客户原话：「我已经把 RTL 交过来了，要的是一份能评审的文档，不是一份'这里我不知道'的清单」 |
+| 1.11.1 | **一致性收口**：裸 `TBD` 从「两种位置允许」改为零出现，替代写法只有「由 XX 文档给出」与 `TBC－见 Q-07`；输出规范里的缺口表由「标 TBD + 末尾汇总」改为「给候选、标等级、指编号」；评审阶段从「标签」变成判据（50% / 85% / 100% 三档各自允许缺什么）。 | 改根规矩时漏改散落章节，被一句「每做完一步都会 review 吗」查出来 |
+| 1.12.0 | **正向文档的自查**：`spec-outline` 5.4 拆成正反两节，5.4.1 正向 16 条按 30% / 70% / 交付前三个时点分查；`review-checklist` 一·B 成为唯一来源（29 → 45 条）；agent 的 B 分支第 10 步从「过一眼」改成两趟逐条判（先机械项约三十条，再判断项）；SKILL 路由新增一行，写清正向 66 条 / 反向 45 条，交付时报位置与结果、不报「已自检」。 | 「有必要 review 吗」——真问题是正向文档写完之后没有任何自查机制，实测只覆盖评审清单第一节 66 条的 11% |
+
+同时修掉 1.9.0 的两处遗留：`SKILL.md` 的描述与反向节奏里还写着「七章」，1.12.0 已统一为「八章」。
+
 ## 与原始插件的差异
 
 - 原始 `maxTurns: 80` 在 DSH 预设里没有对应字段，未迁移；需要限制轮次请在会话侧控制。
 - 原始 `avatars/expert.png`（512×512 圆形徽标，内含「芯片定制」文字）在 36 px 行内尺寸下文字不可读，因此插件图标改用自绘的芯片剪影 SVG。要换回原图，把 PNG 放进包内并在 `package.json` 声明 `"icon"`。
 - 原始 `quickPrompts`、`defaultInitPrompt`、`categoryId`、`expertType` 是 CodeBuddy 侧的概念，DSH 预设没有对应字段，未迁移。
 - 技能根目录在补丁里用 `baseUrl` 求值为包自身的 `skills/` 目录，因此移动包目录、从 npm 或 tarball 安装都不需要改配置。
-- 人设正文从第三人称改为第二人称，并去掉了原名「顾芯 Gu Xin」；其余措辞与原始 agent 定义一致。
+- 人设正文从第三人称改为第二人称，并去掉了原始 agent 定义里的人名与角色设定；其余措辞与原始 agent 定义一致。
 - 原始 ZIP 仍保留在 `package/chip-arch-expert.zip`，本 bundle 是它的 DSH 侧移植，未改动原文件。
