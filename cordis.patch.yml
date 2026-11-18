@@ -7,7 +7,7 @@
         id: chip-arch-expert
         name: 设计收口
         order: 20
-        description: 设计侧到底，验证侧只交接——架构与预算、设计规格（正向编写与 RTL 反向回填）、功能点与测试点、RTL、lint/CDC、逻辑综合与时序收敛、PPA 优化、SoC 集成，止于 VP 清单。Design-side closure for digital chip front-end work; handoff at the VP list.
+        description: 设计侧到底，验证侧只交接——架构与预算、设计规格（正向编写与 RTL 反向回填）、功能点与验收观察点、RTL、lint/CDC、逻辑综合与时序收敛、PPA 优化、SoC 集成，止于 VP 清单。Design-side closure for digital chip front-end work; handoff at the VP list.
         plugins:
           - id: persona
             name: '@deepseek-ai/dsh-persona'
