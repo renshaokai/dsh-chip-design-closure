@@ -64,15 +64,20 @@ Releasing runs in GitHub Actions through npm trusted publishing, so no token, OT
 1. Bump the version and tag that commit with the same version:
 
    ```sh
-   npm version 1.13.1 --no-git-tag-version
-   git commit -am "chore: 1.13.1"
-   git tag v1.13.1
-   git push --follow-tags
+   npm version 1.13.2 --no-git-tag-version
+   git commit -am "chore: 1.13.2"
+   git tag v1.13.2
+   git push origin main
+   git push origin v1.13.2
    ```
+
+   Push the tag with its own `git push`. `git push --follow-tags` only carries **annotated** tags, so a tag created with plain `git tag` is silently left behind and the workflow never starts.
 
 2. `.github/workflows/publish.yml` runs on the `v*` tag, refuses to continue when the tag and `package.json` disagree, prints the tarball contents, then publishes with provenance.
 
 The repository is bound to the package once, on the package's **Settings → Trusted Publisher** page on npmjs.com, naming this repository and the workflow file `publish.yml`. A manual `workflow_dispatch` run publishes the current manifest version and therefore only succeeds when that version is not already on the registry.
+
+The workflow needs `npm >= 11.5.1`, which the job installs into its own prefix, and `package.json` must declare `repository.url` matching the GitHub repository, otherwise the registry rejects the provenance bundle. [`docs/RELEASE-NOTES.md`](docs/RELEASE-NOTES.md) records the failure signatures and their fixes.
 
 ## Differences from the CodeBuddy edition
 
