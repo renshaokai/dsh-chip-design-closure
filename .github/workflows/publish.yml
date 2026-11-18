@@ -25,8 +25,25 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Upgrade npm for trusted publishing
-        run: npm install --global npm@^11
+      # Trusted publishing needs npm >= 11.5.1. Install it into a directory of
+      # our own and put that first on PATH, so the upgrade cannot be shadowed by
+      # the npm that ships with Node.
+      - name: Install npm 11 for trusted publishing
+        run: |
+          npm install --global --prefix "$RUNNER_TEMP/npm11" npm@^11
+          echo "$RUNNER_TEMP/npm11/bin" >> "$GITHUB_PATH"
+
+      - name: Check the toolchain
+        run: |
+          echo "npm: $(npm --version)"
+          echo "node: $(node --version)"
+          echo "which npm: $(command -v npm)"
+          if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "OIDC id-token endpoint: available"
+          else
+            echo "::error::ACTIONS_ID_TOKEN_REQUEST_URL is missing; trusted publishing cannot work"
+            exit 1
+          fi
 
       - name: Use the public registry
         run: npm config set registry https://registry.npmjs.org
