@@ -22,7 +22,13 @@ Or in the Web GUI: **Plugins** → **Add plugin** → pick the package directory
 
 Then start a new session and choose the **设计收口** preset.
 
-The package is not published to npm yet, so `add dsh-chip-design-closure` fails with a registry lookup error. After `npm publish`, the bare name installs from the registry instead; the engine requirement is `dsh >= 0.2.2-rc.3`.
+The package is published on npm as `dsh-chip-design-closure`, so the bare name installs from the registry:
+
+```sh
+dsh plugin --profile <profile> add dsh-chip-design-closure
+```
+
+Use a local checkout path instead when you want the installed bundle to follow the working tree. The engine requirement is `dsh >= 0.2.2-rc.3`.
 
 ## What it adds
 
