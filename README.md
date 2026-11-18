@@ -57,6 +57,23 @@ icon.svg            36×36 chip glyph
 skills/chip-design  the skill: SKILL.md, references/, templates/, scripts/
 ```
 
+## Release
+
+Releasing runs in GitHub Actions through npm trusted publishing, so no token, OTP, or web approval is involved.
+
+1. Bump the version and tag that commit with the same version:
+
+   ```sh
+   npm version 1.13.1 --no-git-tag-version
+   git commit -am "chore: 1.13.1"
+   git tag v1.13.1
+   git push --follow-tags
+   ```
+
+2. `.github/workflows/publish.yml` runs on the `v*` tag, refuses to continue when the tag and `package.json` disagree, prints the tarball contents, then publishes with provenance.
+
+The repository is bound to the package once, on the package's **Settings → Trusted Publisher** page on npmjs.com, naming this repository and the workflow file `publish.yml`. A manual `workflow_dispatch` run publishes the current manifest version and therefore only succeeds when that version is not already on the registry.
+
 ## Differences from the CodeBuddy edition
 
 - `maxTurns: 80` has no DSH equivalent and is not migrated; use the session controls instead.
