@@ -65,4 +65,4 @@ jobs:
       # No NODE_AUTH_TOKEN: npm exchanges the GitHub OIDC token for a
       # short-lived publish credential and attaches provenance automatically.
       - name: Publish
-        run: npm publish --access public --loglevel verbose
+        run: npm publish --access public
