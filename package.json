@@ -17,6 +17,10 @@
     "type": "git",
     "url": "git+https://github.com/renshaokai/dsh-chip-design-closure.git"
   },
+  "homepage": "https://github.com/renshaokai/dsh-chip-design-closure#readme",
+  "bugs": {
+    "url": "https://github.com/renshaokai/dsh-chip-design-closure/issues"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org"
