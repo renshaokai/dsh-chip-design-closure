@@ -1,6 +1,10 @@
 # dsh-chip-design-closure
 
-A DeepSeek Harness bundle that adds the **设计收口 (Design closure)** agent preset: design-side closure for digital chip front-end work — architecture and budgets, design specs, functional-point and acceptance observation point lists, RTL, lint/CDC, synthesis and timing closure, PPA, SoC integration — handing off at the VP list. Carries the **chip-design** skill.
+**Design-side closure for digital chip front-end work: a DSH agent preset that writes the spec, plus scripts that check it.** 数字芯片前端设计收口——会写 spec 的 agent 预设，配一套能跑的校验脚本。
+
+- **给谁** · For: RTL designers and verification engineers who need architecture decisions to become a reviewable document — written from a PRD, or reverse-engineered from RTL that already exists.
+- **产出** · Ships: the eight-chapter spec, register and interface contracts, FP/VP handoff lists (stops at the VP list), and three scripts — a 38-rule spec linter, a Markdown to docx/PDF converter with a real Word table of contents, and a draw.io / Mermaid / WaveDrom figure renderer.
+- **开始** · Start: `dsh plugin add dsh-chip-design-closure`, open a new session, pick the **设计收口** preset.
 
 This is the DeepSeek Harness edition of the CodeBuddy expert plugin `chip-arch-expert` v1.13.0 — same author, adapted packaging. The skill content tracks the upstream release; the persona keeps its substance but is rewritten in second person with the character name dropped, and the preset, tool composition, icon and display metadata are DSH-specific.
 
