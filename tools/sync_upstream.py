@@ -248,7 +248,12 @@ def assert_persona_roundtrip(root: Path, bundle: Path, res: Result) -> None:
 
 
 def assert_skill_bytes(root: Path, bundle: Path, res: Result) -> None:
-    """技能文件：逐字节一致，只允许 LF 归一与页脚署名两处差异。"""
+    """技能文件：逐字节一致，只允许 LF 归一、页脚署名、页脚版本号三处差异。
+
+    页脚版本号也在允许之列，是因为 `do_sync` 会把它校正到上游 `plugin.json`
+    的版本——上游 1.13.0 打包时有两个文件页脚忘了改，下游若忠实复制就会
+    把旧版本号带出去。校正后的差异由 `assert_footer_version` 单独把关。
+    """
     us = root / "skills/chip-design"
     bs = bundle / "skills/chip-design"
     if not us.is_dir() or not bs.is_dir():
@@ -261,7 +266,10 @@ def assert_skill_bytes(root: Path, bundle: Path, res: Result) -> None:
         a = norm_lf((us / r).read_bytes()).decode("utf-8", "replace")
         c = norm_lf((bs / r).read_bytes()).decode("utf-8", "replace")
         if swap_footer(a) != swap_footer(c):
-            diffs.append(r)
+            # 页脚版本号不算内容差异（由 assert_footer_version 专管）
+            strip_v = lambda s: re.sub(r"(<sub>[^<]*?v)\d+\.\d+\.\d+", r"\g<1>X", s)
+            if strip_v(swap_footer(a)) != strip_v(swap_footer(c)):
+                diffs.append(r)
     problems = []
     if only_u:
         problems.append(f"下游缺 {len(only_u)} 个：{only_u[:4]}")
@@ -271,6 +279,42 @@ def assert_skill_bytes(root: Path, bundle: Path, res: Result) -> None:
         problems.append(f"内容不同：{diffs[:4]}")
     res.add("技能文件逐字节一致（除 LF 与页脚）", not problems,
             "；".join(problems) if problems else f"{len(u & b)} 个文件一致")
+
+
+def assert_footer_version(bundle: Path, root: Path, res: Result) -> None:
+    """页脚里的版本号必须与上游插件的 `plugin.json` 版本一致。
+
+    为什么单独一条：上面那条逐字节断言会把页脚整体 swap 掉再比，
+    所以**页脚写什么都没关系**——上游 1.13.0 打包时有两个文件页脚忘了改
+    （仍是 v1.12.0），那条断言照样 PASS。这是它的盲区，不是它的错：
+    它要保证的是"下游忠实复制上游"，不是"上游自己没写错"。
+
+    但下游是给人看的：用户在 `spec-outline.md` 末尾看到 v1.12.0，
+    会以为这份技能还是旧版。所以这条独立查一遍，只对下游内容下判断。
+    """
+    pj = root / ".codebuddy-plugin" / "plugin.json"
+    if not pj.exists():
+        res.add("页脚版本与上游 plugin.json 一致", True, "上游 plugin.json 不存在，跳过")
+        return
+    try:
+        want = json.loads(pj.read_text(encoding="utf-8")).get("version", "")
+    except Exception as e:  # noqa: BLE001
+        res.add("页脚版本与上游 plugin.json 一致", False, f"plugin.json 解析失败：{e}")
+        return
+
+    # 页脚两种写法：`顾芯 · chip-arch-expert vX` 与 `chip-design · vX`
+    pat = re.compile(r"<sub>[^<]*?v(\d+\.\d+\.\d+)")
+    bad, seen = [], 0
+    for p in sorted((bundle / "skills").rglob("*.md")):
+        txt = norm_lf(p.read_bytes()).decode("utf-8", "replace")
+        for m in pat.finditer(txt):
+            seen += 1
+            if m.group(1) != want:
+                rel = p.relative_to(bundle).as_posix()
+                line = txt[: m.start()].count("\n") + 1
+                bad.append(f"{rel}:{line} 写的是 v{m.group(1)}")
+    res.add("页脚版本与上游 plugin.json 一致", not bad,
+            "；".join(bad[:4]) if bad else f"{seen} 处页脚均为 v{want}")
 
 
 def assert_mdmodel_wired(root: Path, bundle: Path, res: Result) -> None:
@@ -331,10 +375,15 @@ def do_sync(root: Path, bundle: Path) -> None:
         shutil.rmtree(bs)
     shutil.copytree(us, bs)
 
-    # 技能页脚署名
+    # 技能页脚署名 + 版本号。
+    # 版本号这步是 1.13.0 漏掉的那个 bug 的根因：上游打包时有两个文件页脚
+    # 还写着 v1.12.0，`swap_footer` 只换署名不碰版本，于是被原样带到下游。
+    # 页脚是给人看的，写旧版本会让人误判技能版本，所以同步时就地校正。
+    ver = json.loads((root / ".codebuddy-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
     for p in bs.rglob("*.md"):
         t = norm_lf(p.read_bytes()).decode("utf-8")
         t2 = swap_footer(t)
+        t2 = re.sub(r"(<sub>[^<]*?v)\d+\.\d+\.\d+", rf"\g<1>{ver}", t2)
         if t2 != t:
             p.write_bytes(t2.encode("utf-8"))
 
@@ -355,8 +404,7 @@ def do_sync(root: Path, bundle: Path) -> None:
     # 这个坑踩过两次（一次上游包、一次这里），所以写回时直接按字节断言。
     patch.write_bytes(text.replace("\r\n", "\n").encode("utf-8"))
 
-    # 版本号
-    ver = json.loads((root / ".codebuddy-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
+    # 包版本号（技能页脚版本上面已顺手校正，复用同一个 ver）
     pj = bundle / "package.json"
     pj_text = pj.read_text(encoding="utf-8")
     pj_text = re.sub(r'("version"\s*:\s*")[^"]+(")', rf"\g<1>{ver}\g<2>", pj_text, count=1)
@@ -400,6 +448,7 @@ def main(argv=None) -> int:
         assert_persona_roundtrip(root, bundle, res2)
         assert_persona_independent(bundle, res2)
         assert_skill_bytes(root, bundle, res2)
+        assert_footer_version(bundle, root, res2)
         assert_downlink_lf(bundle, res2)
         assert_mdmodel_wired(root, bundle, res2)
         print("\n[下游状态]")
@@ -416,6 +465,7 @@ def main(argv=None) -> int:
     assert_persona_roundtrip(root, bundle, res2)
     assert_persona_independent(bundle, res2)
     assert_skill_bytes(root, bundle, res2)
+    assert_footer_version(bundle, root, res2)
     assert_downlink_lf(bundle, res2)
     assert_mdmodel_wired(root, bundle, res2)
     print("\n[同步后：下游断言]")

@@ -182,4 +182,4 @@ spec 条款 → FP → VP        ←── 本文档负责到这里
 
 ---
 
-<sub>设计收口 · chip-arch-expert v1.12.0 · 作者 流片之前 · 来源 open.workbuddy.cn/expert/publish/oe_3aa9fd6e0e208ee8</sub>
+<sub>设计收口 · chip-arch-expert v1.13.0 · 作者 流片之前 · 来源 open.workbuddy.cn/expert/publish/oe_3aa9fd6e0e208ee8</sub>

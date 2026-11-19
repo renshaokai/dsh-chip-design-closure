@@ -1,5 +1,5 @@
 # Inserts the design-closure expert preset: the DeepSeek Harness edition
-# of the CodeBuddy expert plugin chip-arch-expert v1.12.0 (author: 流片之前).
+# of the CodeBuddy expert plugin chip-arch-expert v1.13.0 (author: 流片之前).
 - insert:
     - id: preset-chip-arch-expert
       name: '@deepseek-ai/dsh-agent-preset'

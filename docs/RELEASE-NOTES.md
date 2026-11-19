@@ -111,8 +111,32 @@ setup is fine.
 `git tag` stays local and nothing triggers. Push it explicitly with
 `git push origin v1.13.2`, or create annotated tags with `git tag -a`.
 
-### Staged publishes
+### Skill footers carry the wrong version after a sync
 
+Symptom: `skills/chip-design/references/*.md` end with `<sub>… chip-arch-expert
+v1.12.0 …</sub>` even though the bundle ships 1.13.0 content.
+
+Cause, in two layers. Upstream packed 1.13.0 without bumping the footer on two
+reference files (`fp-vp-generation.md`, `spec-outline.md`). The sync tool then
+copied them verbatim, because its byte-identity assertion swaps the footer out
+before comparing — it guarantees *the bundle faithfully copies upstream*, not
+*upstream is self-consistent*. So the footer could say anything and still pass.
+
+Fix, applied in 1.13.2:
+
+- `do_sync` now rewrites the `<sub>… vX.Y.Z` version together with the author
+  name, sourced from the upstream `plugin.json`, so a stale upstream footer
+  cannot be carried down.
+- `assert_footer_version` checks the **bundle** against that same version and
+  reports `file:line` for each mismatch. It is deliberately independent of the
+  byte-identity check, which stays blind to footers by design.
+- The byte-identity check now also normalises the footer version, so the two
+  assertions divide cleanly: content vs. footer.
+
+Lesson worth keeping: any assertion that is allowed to normalise a field is
+not checking that field. If the field matters to a reader, assert it separately.
+
+### Staged publishes
 Publishing with a granular access token that bypasses 2FA no longer publishes
 directly; npm converts it into a staged release and waits for a 2FA approval,
 which leaves the package pointing at a `0.0.0-stage` placeholder:
