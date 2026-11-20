@@ -172,3 +172,31 @@ The last command should report a `provenance` attestation of predicate type
 `https://slsa.dev/provenance/v1`; the package page then shows a **Verified**
 badge. Registry processing is asynchronous — the new version can take a few
 minutes to appear even after the workflow reports success.
+
+## Why `index.js` exists (1.13.3)
+
+A DSH bundle is configuration: the host boots it by reading `dsh.bundle.patch`
+out of `package.json` and composing that YAML. Nothing imports the package to
+make it work, so `1.13.0`–`1.13.2` shipped with no JavaScript entry at all — 23
+files, all YAML/Markdown/Python.
+
+That is legitimate for the host, and it is not for tooling: a reviewer reading
+the tarball sees a manifest with no `main`, no `"."` export, and no way to ask
+the installed package "where is your patch, which preset do you insert, where do
+your skills live" without parsing YAML and reconstructing paths from
+`node_modules`.
+
+`1.13.3` adds `index.js`: an ESM module with no side effects that exports
+`preset`, `patchPath`, `skillsDir`, `skillName`, plus `readPatch()` and
+`describe()`. It is a programmatic door, not a boot requirement.
+
+Verified end to end before publishing:
+
+```sh
+npm pack                                  # 24 files, index.js included
+npm install ./dsh-chip-design-closure-1.13.3.tgz
+node -e "import('dsh-chip-design-closure').then(m => console.log(m.describe()))"
+```
+
+The import resolves and reports the preset id, the patch path and the skill
+directory from inside `node_modules`.

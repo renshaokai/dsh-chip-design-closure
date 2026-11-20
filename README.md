@@ -52,7 +52,8 @@ The skill directory is resolved relative to the installed package, so the bundle
 ## Layout
 
 ```
-package.json        bundle manifest (dsh.bundle.patch)
+package.json        bundle manifest (dsh.bundle.patch, main: ./index.js)
+index.js            entry module: exports preset id, patch path and skill dir
 cordis.patch.yml    preset declaration: persona + tool rows + skill root
 locale/en.json      plugin title and description for the Plugins page
 locale/zh.json
